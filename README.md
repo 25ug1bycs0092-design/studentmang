@@ -1,0 +1,2 @@
+# studentmang
+student management system
