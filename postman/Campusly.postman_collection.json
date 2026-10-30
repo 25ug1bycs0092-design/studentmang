@@ -1,0 +1,174 @@
+{
+  "info": {
+    "_postman_id": "c136d36e-d2bf-48c8-884c-6e8ed20719e3",
+    "name": "Campusly Student Management API",
+    "description": "Set baseUrl and login first. Login scripts store the JWT and demo IDs in collection variables. Seed the database before running student-dependent requests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:5000/api" },
+    { "key": "token", "value": "" },
+    { "key": "studentId", "value": "STU-2401" },
+    { "key": "teacherId", "value": "TCH-1021" },
+    { "key": "courseId", "value": "CRS-101" },
+    { "key": "attendanceDate", "value": "2026-10-30" },
+    { "key": "seedPassword", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "API and database health",
+          "request": { "method": "GET", "url": "{{baseUrl}}/health" }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Admin login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeded', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('token', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"role\":\"admin\",\"identity\":\"admin@campus.edu\",\"password\":\"{{seedPassword}}\"}" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Student login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"role\":\"student\",\"identity\":\"{{studentId}}\",\"password\":\"{{seedPassword}}\"}" },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Current account",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "Search students",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": "{{baseUrl}}/students?q=Olivia"
+          }
+        },
+        {
+          "name": "Create student",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"id\":\"STU-POSTMAN-1\",\"name\":\"Postman Student\",\"email\":\"postman.student@example.edu\",\"department\":\"Computer Science\",\"course\":\"B.Sc. Computer Science\",\"year\":\"Year 1\"}" },
+            "url": "{{baseUrl}}/students"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teachers and Courses",
+      "item": [
+        {
+          "name": "List teachers",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/teachers" }
+        },
+        {
+          "name": "List courses",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/courses" }
+        },
+        {
+          "name": "List enrollments",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/courses/{{courseId}}/enrollments" }
+        }
+      ]
+    },
+    {
+      "name": "Attendance and Fees",
+      "item": [
+        {
+          "name": "Attendance by date",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/attendance?date={{attendanceDate}}" }
+        },
+        {
+          "name": "Mark attendance",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"date\":\"{{attendanceDate}}\",\"records\":[{\"student_id\":\"{{studentId}}\",\"status\":\"Present\"}]}" },
+            "url": "{{baseUrl}}/attendance"
+          }
+        },
+        {
+          "name": "Student fees",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/fees/{{studentId}}" }
+        },
+        {
+          "name": "Record payment",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"amount\":100,\"period\":\"2026\",\"method\":\"Cash\"}" },
+            "url": "{{baseUrl}}/fees/{{studentId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard, Portal, Reports",
+      "item": [
+        {
+          "name": "Dashboard summary",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/dashboard" }
+        },
+        {
+          "name": "Student portal",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/portal/me" }
+        },
+        {
+          "name": "Performance report",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/reports/performance" }
+        },
+        {
+          "name": "Attendance report",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/reports/attendance?start=2026-10-01&end={{attendanceDate}}" }
+        },
+        {
+          "name": "Academic results",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/reports/academic" }
+        },
+        {
+          "name": "Fee report",
+          "request": { "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] }, "method": "GET", "url": "{{baseUrl}}/reports/fees" }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,408 @@
+openapi: 3.0.3
+info:
+  title: Campusly Student Management API
+  version: 1.0.0
+  description: Flask REST API for campus authentication, records, attendance, fees, academics, and reports.
+servers:
+  - url: /api
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      security: []
+      summary: Check API and database connectivity
+      responses:
+        "200": { description: Database connected }
+        "503": { description: Database unavailable }
+  /auth/login:
+    post:
+      security: []
+      summary: Log in an admin, teacher, or student
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, identity, password]
+              properties:
+                role: { type: string, enum: [admin, teacher, student] }
+                identity: { type: string, description: Email address or student ID }
+                password: { type: string, format: password }
+      responses:
+        "200": { description: JWT access token, role, name, and linked profile IDs }
+        "401": { description: Invalid credentials }
+  /auth/me:
+    get:
+      summary: Get the authenticated account
+      responses:
+        "200": { description: Authenticated user profile }
+  /auth/users:
+    post:
+      summary: Create a linked teacher or student login (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role, email, password]
+              properties:
+                role: { type: string, enum: [teacher, student] }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 10 }
+                student_id: { type: string }
+                teacher_id: { type: string }
+      responses:
+        "201": { description: Account created }
+  /students:
+    get:
+      summary: Search student records (admin and teacher)
+      parameters:
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: department, schema: { type: string } }
+        - { in: query, name: course, schema: { type: string } }
+        - { in: query, name: status, schema: { type: string } }
+      responses:
+        "200": { description: Student array compatible with the Campusly frontend }
+    post:
+      summary: Create a student (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StudentInput"
+      responses:
+        "201": { description: Created student record }
+  /students/{student_id}:
+    parameters:
+      - { in: path, name: student_id, required: true, schema: { type: string } }
+    get:
+      summary: Get one student (students can access only their own record)
+      responses:
+        "200": { description: Student record }
+    put:
+      summary: Update a student (admin only)
+      responses:
+        "200": { description: Updated student record }
+    delete:
+      summary: Delete a student and related records (admin only)
+      responses:
+        "204": { description: Student deleted }
+  /teachers:
+    get:
+      summary: List teachers (admin and teacher)
+      responses:
+        "200": { description: Teacher array }
+    post:
+      summary: Create a teacher (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherInput"
+      responses:
+        "201": { description: Created teacher }
+  /teachers/{teacher_id}:
+    parameters:
+      - { in: path, name: teacher_id, required: true, schema: { type: string } }
+    get:
+      summary: Get a teacher profile
+      responses:
+        "200": { description: Teacher profile }
+    put:
+      summary: Update a teacher (admin only)
+      responses:
+        "200": { description: Updated teacher }
+    delete:
+      summary: Delete a teacher (admin only)
+      responses:
+        "204": { description: Teacher deleted }
+  /courses:
+    get:
+      summary: List courses (role-filtered for student and teacher accounts)
+      responses:
+        "200": { description: Course array }
+    post:
+      summary: Create a course (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CourseInput"
+      responses:
+        "201": { description: Created course }
+  /courses/{course_id}:
+    parameters:
+      - { in: path, name: course_id, required: true, schema: { type: string } }
+    get:
+      summary: Get course and enrollment count
+      responses:
+        "200": { description: Course record }
+    put:
+      summary: Update a course (admin only)
+      responses:
+        "200": { description: Updated course }
+    delete:
+      summary: Delete a course (admin only)
+      responses:
+        "204": { description: Course deleted }
+  /courses/{course_id}/enrollments:
+    get:
+      summary: List enrolled students (admin or assigned teacher)
+      responses:
+        "200": { description: Enrolled student array }
+    post:
+      summary: Enroll a student (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [student_id]
+              properties:
+                student_id: { type: string }
+      responses:
+        "201": { description: Created enrollment }
+  /courses/{course_id}/enrollments/{student_id}:
+    delete:
+      summary: Drop a student enrollment (admin only)
+      responses:
+        "204": { description: Enrollment deleted }
+  /departments:
+    get:
+      summary: List departments
+      responses:
+        "200": { description: Department array }
+    post:
+      summary: Create a department (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 100 }
+      responses:
+        "201": { description: Created department }
+  /departments/{department_id}:
+    parameters:
+      - { in: path, name: department_id, required: true, schema: { type: integer } }
+    put:
+      summary: Rename a department (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 100 }
+      responses:
+        "200": { description: Updated department }
+    delete:
+      summary: Delete a department and unlink its profiles/courses (admin only)
+      responses:
+        "204": { description: Department deleted }
+  /attendance:
+    get:
+      summary: Retrieve attendance by date (student accounts see only their own)
+      parameters:
+        - { in: query, name: date, schema: { type: string, format: date } }
+        - { in: query, name: student_id, schema: { type: string } }
+      responses:
+        "200": { description: Attendance array }
+    post:
+      summary: Mark or update one or more attendance records (admin or teacher)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AttendanceBatch"
+      responses:
+        "200": { description: Saved attendance array }
+  /fees:
+    get:
+      summary: List fee accounts (students see their own)
+      responses:
+        "200": { description: Fee account array with payments and balance }
+  /fees/accounts:
+    post:
+      summary: Create a student fee account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeeAccountInput"
+      responses:
+        "201": { description: Created fee account }
+  /fees/{student_id}:
+    parameters:
+      - { in: path, name: student_id, required: true, schema: { type: string } }
+    get:
+      summary: List student fee accounts
+      responses:
+        "200": { description: Student fee accounts }
+    post:
+      summary: Record a payment against an existing fee account (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaymentInput"
+      responses:
+        "201": { description: Recorded payment }
+  /portal/me:
+    get:
+      summary: Load the authenticated student's profile, courses, attendance, fees, and results
+      responses:
+        "200": { description: Student portal data }
+  /dashboard:
+    get:
+      summary: Database-backed dashboard summary (admin and teacher)
+      responses:
+        "200": { description: Record totals, attendance, and fee totals }
+  /results:
+    get:
+      summary: List academic results (students see their own; teachers see assigned courses)
+      responses:
+        "200": { description: Academic result array }
+    post:
+      summary: Record an academic result (admin or assigned teacher)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcademicResultInput"
+      responses:
+        "201": { description: Created academic result }
+  /results/{result_id}:
+    delete:
+      summary: Delete an academic result (admin or assigned teacher)
+      parameters:
+        - { in: path, name: result_id, required: true, schema: { type: integer } }
+      responses:
+        "204": { description: Result deleted }
+  /reports/performance:
+    get:
+      summary: Performance, course attendance, and monthly enrollment report
+      responses:
+        "200": { description: Report arrays generated from database records }
+  /reports/attendance:
+    get:
+      summary: Attendance percentages for a date range
+      parameters:
+        - { in: query, name: start, schema: { type: string, format: date } }
+        - { in: query, name: end, schema: { type: string, format: date } }
+      responses:
+        "200": { description: Attendance report }
+  /reports/academic:
+    get:
+      summary: Academic results report
+      responses:
+        "200": { description: Academic results }
+  /reports/fees:
+    get:
+      summary: Fee balances and payment report (admin only)
+      responses:
+        "200": { description: Fee report }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    StudentInput:
+      type: object
+      required: [name, email, course]
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 160 }
+        email: { type: string, format: email }
+        phone: { type: string, maxLength: 40 }
+        department: { type: string }
+        course: { type: string }
+        year: { type: string }
+        status: { type: string, enum: [Active, Inactive, Graduated] }
+        fee: { type: number, minimum: 0 }
+        paid: { type: number, minimum: 0 }
+        password: { type: string, minLength: 10, description: Optional password to create the linked student login }
+    TeacherInput:
+      type: object
+      required: [name, email, subject]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string }
+        department: { type: string }
+        subject: { type: string }
+        experience: { type: string }
+        status: { type: string, enum: [Active, Inactive] }
+        password: { type: string, minLength: 10, description: Optional password to create the linked teacher login }
+    CourseInput:
+      type: object
+      required: [name]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        department: { type: string }
+        teacher: { type: string, description: Teacher name or teacher ID }
+        capacity: { type: integer, minimum: 1 }
+        duration: { type: string }
+        status: { type: string, enum: [Active, Inactive] }
+    AttendanceBatch:
+      type: object
+      required: [date, records]
+      properties:
+        date: { type: string, format: date }
+        records:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [student_id, status]
+            properties:
+              student_id: { type: string }
+              date: { type: string, format: date }
+              status: { type: string, enum: [Present, Absent, Late] }
+    FeeAccountInput:
+      type: object
+      required: [student_id, period, total_due]
+      properties:
+        student_id: { type: string }
+        period: { type: string }
+        total_due: { type: number, minimum: 0 }
+        due_date: { type: string, format: date }
+    PaymentInput:
+      type: object
+      required: [amount]
+      properties:
+        amount: { type: number, exclusiveMinimum: 0 }
+        period: { type: string }
+        method: { type: string }
+        reference: { type: string }
+    AcademicResultInput:
+      type: object
+      required: [student_id, course_id, term, assessment, score]
+      properties:
+        student_id: { type: string }
+        course_id: { type: string }
+        term: { type: string }
+        assessment: { type: string }
+        score: { type: number, minimum: 0 }
+        max_score: { type: number, exclusiveMinimum: 0 }
+        recorded_at: { type: string, format: date }
