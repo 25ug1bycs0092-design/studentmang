@@ -1,6 +1,8 @@
-# Campusly Student Management
+# studentmang
 
-Responsive campus management frontend and Flask REST API. The Flask API uses SQLAlchemy with SQLite locally and PostgreSQL on Render. It serves the frontend from the same origin by default, so the app uses `/api` without a production URL change.
+## Campusly Student Management
+
+Student management system with a responsive frontend and Flask REST API. The API uses SQLAlchemy with SQLite locally and PostgreSQL on Render. It serves the frontend from the same origin by default, so the app uses `/api` without a production URL change.
 
 ## Local setup (Windows PowerShell)
 
